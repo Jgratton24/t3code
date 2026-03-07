@@ -16,6 +16,13 @@ import { RotatingFileSink } from "@t3tools/shared/logging";
 import { showDesktopConfirmDialog } from "./confirmDialog";
 import { fixPath } from "./fixPath";
 import {
+  isWslAvailable,
+  listWslDistrosAsync,
+  loadWslConfig,
+  saveWslConfig,
+  windowsToWslPath,
+} from "./wsl";
+import {
   getAutoUpdateDisabledReason,
   shouldBroadcastDownloadProgress,
 } from "./updateState";
@@ -43,6 +50,9 @@ const UPDATE_STATE_CHANNEL = "desktop:update-state";
 const UPDATE_GET_STATE_CHANNEL = "desktop:update-get-state";
 const UPDATE_DOWNLOAD_CHANNEL = "desktop:update-download";
 const UPDATE_INSTALL_CHANNEL = "desktop:update-install";
+const WSL_LIST_DISTROS_CHANNEL = "desktop:wsl-list-distros";
+const WSL_GET_CONFIG_CHANNEL = "desktop:wsl-get-config";
+const WSL_SET_CONFIG_CHANNEL = "desktop:wsl-set-config";
 const STATE_DIR =
   process.env.T3CODE_STATE_DIR?.trim() || Path.join(OS.homedir(), ".t3", "userdata");
 const DESKTOP_SCHEME = "t3";
@@ -806,7 +816,9 @@ function backendEnv(): NodeJS.ProcessEnv {
 function scheduleBackendRestart(reason: string): void {
   if (isQuitting || restartTimer) return;
 
-  const delayMs = Math.min(500 * 2 ** restartAttempt, 10_000);
+  const wslActive = loadWslConfig(STATE_DIR).enabled && isWslAvailable();
+  const maxDelayMs = wslActive ? 20_000 : 10_000;
+  const delayMs = Math.min(500 * 2 ** restartAttempt, maxDelayMs);
   restartAttempt += 1;
   console.error(`[desktop] backend exited unexpectedly (${reason}); restarting in ${delayMs}ms`);
 
@@ -819,23 +831,58 @@ function scheduleBackendRestart(reason: string): void {
 function startBackend(): void {
   if (isQuitting || backendProcess) return;
 
-  const backendEntry = resolveBackendEntry();
-  if (!FS.existsSync(backendEntry)) {
-    scheduleBackendRestart(`missing server entry at ${backendEntry}`);
-    return;
-  }
-
+  const wslConfig = loadWslConfig(STATE_DIR);
+  const useWsl = wslConfig.enabled && isWslAvailable();
   const captureBackendLogs = app.isPackaged && backendLogSink !== null;
-  const child = ChildProcess.spawn(process.execPath, [backendEntry], {
-    cwd: resolveBackendCwd(),
-    // In Electron main, process.execPath points to the Electron binary.
-    // Run the child in Node mode so this backend process does not become a GUI app instance.
-    env: {
-      ...backendEnv(),
-      ELECTRON_RUN_AS_NODE: "1",
-    },
-    stdio: captureBackendLogs ? ["ignore", "pipe", "pipe"] : "inherit",
-  });
+
+  let child: ChildProcess.ChildProcess;
+
+  if (useWsl) {
+    const distroArgs = wslConfig.distro ? ["-d", wslConfig.distro] : [];
+    const windowsEntry = resolveBackendEntry();
+    const linuxEntry = windowsToWslPath(wslConfig.distro, windowsEntry);
+    if (linuxEntry === windowsEntry) {
+      scheduleBackendRestart("wslpath conversion failed for backend entry");
+      return;
+    }
+    // Pass T3Code-specific vars via WSLENV (safe for values with special chars).
+    // Omit T3CODE_STATE_DIR so the server defaults to ~/.t3/userdata inside WSL.
+    const wslEnv: Record<string, string> = {
+      T3CODE_MODE: "desktop",
+      T3CODE_NO_BROWSER: "1",
+      T3CODE_PORT: String(backendPort),
+      T3CODE_AUTH_TOKEN: backendAuthToken,
+    };
+    for (const key of ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]) {
+      if (process.env[key]) wslEnv[key] = process.env[key]!;
+    }
+    // WSLENV tells WSL which env vars to forward from the Windows host process
+    const wslenvValue = Object.keys(wslEnv).join(":");
+    child = ChildProcess.spawn(
+      "wsl.exe",
+      [...distroArgs, "--", "node", linuxEntry],
+      {
+        cwd: resolveBackendCwd(),
+        env: { ...wslEnv, WSLENV: wslenvValue },
+        stdio: captureBackendLogs ? ["ignore", "pipe", "pipe"] : "inherit",
+        windowsHide: true,
+      },
+    );
+  } else {
+    const backendEntry = resolveBackendEntry();
+    if (!FS.existsSync(backendEntry)) {
+      scheduleBackendRestart(`missing server entry at ${backendEntry}`);
+      return;
+    }
+    child = ChildProcess.spawn(process.execPath, [backendEntry], {
+      cwd: resolveBackendCwd(),
+      env: {
+        ...backendEnv(),
+        ELECTRON_RUN_AS_NODE: "1",
+      },
+      stdio: captureBackendLogs ? ["ignore", "pipe", "pipe"] : "inherit",
+    });
+  }
   backendProcess = child;
   let backendSessionClosed = false;
   const closeBackendSession = (details: string) => {
@@ -885,6 +932,8 @@ function stopBackend(): void {
   if (!child) return;
 
   if (child.exitCode === null && child.signalCode === null) {
+    // In WSL mode, child is wsl.exe. Terminating it sends SIGHUP to the
+    // Linux-side process tree, which is sufficient for cleanup.
     child.kill("SIGTERM");
     setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) {
@@ -957,7 +1006,13 @@ function registerIpcHandlers(): void {
           properties: ["openDirectory", "createDirectory"],
         });
     if (result.canceled) return null;
-    return result.filePaths[0] ?? null;
+    const pickedPath = result.filePaths[0] ?? null;
+    if (pickedPath === null) return null;
+    const wslConfig = loadWslConfig(STATE_DIR);
+    if (wslConfig.enabled && isWslAvailable()) {
+      return windowsToWslPath(wslConfig.distro, pickedPath);
+    }
+    return pickedPath;
   });
 
   ipcMain.removeHandler(CONFIRM_CHANNEL);
@@ -1084,6 +1139,38 @@ function registerIpcHandlers(): void {
       completed: result.completed,
       state: updateState,
     } satisfies DesktopUpdateActionResult;
+  });
+
+  ipcMain.removeHandler(WSL_LIST_DISTROS_CHANNEL);
+  ipcMain.handle(WSL_LIST_DISTROS_CHANNEL, async () => {
+    if (!isWslAvailable()) return [];
+    return listWslDistrosAsync();
+  });
+
+  ipcMain.removeHandler(WSL_GET_CONFIG_CHANNEL);
+  ipcMain.handle(WSL_GET_CONFIG_CHANNEL, async () => loadWslConfig(STATE_DIR));
+
+  ipcMain.removeHandler(WSL_SET_CONFIG_CHANNEL);
+  ipcMain.handle(WSL_SET_CONFIG_CHANNEL, async (_event, config: unknown) => {
+    if (
+      typeof config !== "object" ||
+      config === null ||
+      typeof (config as Record<string, unknown>).enabled !== "boolean"
+    ) {
+      return false;
+    }
+    const typed = config as { enabled: boolean; distro?: unknown };
+    const distro =
+      typeof typed.distro === "string" && typed.distro.length > 0 ? typed.distro : null;
+    const DISTRO_NAME_PATTERN = /^[\w][\w\s\-.]*$/;
+    if (distro !== null && !DISTRO_NAME_PATTERN.test(distro)) {
+      return false;
+    }
+    saveWslConfig(STATE_DIR, { enabled: typed.enabled, distro });
+    // Restart backend so the new config takes effect
+    stopBackend();
+    startBackend();
+    return true;
   });
 }
 

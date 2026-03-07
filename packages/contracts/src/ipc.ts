@@ -91,6 +91,11 @@ export interface DesktopBridge {
   downloadUpdate: () => Promise<DesktopUpdateActionResult>;
   installUpdate: () => Promise<DesktopUpdateActionResult>;
   onUpdateState: (listener: (state: DesktopUpdateState) => void) => () => void;
+  wslListDistros: () => Promise<
+    Array<{ name: string; isDefault: boolean; version: 1 | 2 }>
+  >;
+  wslGetConfig: () => Promise<{ enabled: boolean; distro: string | null }>;
+  wslSetConfig: (config: { enabled: boolean; distro: string | null }) => Promise<boolean>;
 }
 
 export interface NativeApi {

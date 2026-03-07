@@ -301,6 +301,16 @@ export default function Sidebar() {
   const renamingCommittedRef = useRef(false);
   const renamingInputRef = useRef<HTMLInputElement | null>(null);
   const [desktopUpdateState, setDesktopUpdateState] = useState<DesktopUpdateState | null>(null);
+  const [wslDistroLabel, setWslDistroLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isElectron) return;
+    const bridge = window.desktopBridge;
+    if (!bridge?.wslGetConfig) return;
+    void bridge.wslGetConfig().then((cfg) => {
+      if (!cfg.enabled) return;
+      setWslDistroLabel(cfg.distro ?? "WSL");
+    });
+  }, []);
   const pendingApprovalByThreadId = useMemo(() => {
     const map = new Map<ThreadId, boolean>();
     for (const thread of threads) {
@@ -986,6 +996,11 @@ export default function Sidebar() {
         <span className="rounded-full bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
           {APP_STAGE_LABEL}
         </span>
+        {wslDistroLabel && (
+          <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-[0.18em] text-blue-400">
+            WSL: {wslDistroLabel}
+          </span>
+        )}
       </div>
     </div>
   );
