@@ -14,6 +14,7 @@ import {
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
   type ResolvedKeybindingsConfig,
   type ProviderApprovalDecision,
+  type ServerCodexRateLimits,
   type ServerProviderStatus,
   type ProviderKind,
   type ThreadId,
@@ -1202,8 +1203,6 @@ export default function ChatView({ threadId }: ChatViewProps) {
       limit: 80,
     }),
   );
-  const codexRateLimitsErrorMessage =
-    codexRateLimitsQuery.error instanceof Error ? codexRateLimitsQuery.error.message : null;
   const workspaceEntries = workspaceEntriesQuery.data?.entries ?? EMPTY_PROJECT_ENTRIES;
   const composerMenuItems = useMemo<ComposerCommandItem[]>(() => {
     if (!composerTrigger) return [];
@@ -5358,6 +5357,16 @@ function resolveModelForProviderPicker(
   return null;
 }
 
+function formatWindowDuration(mins: number | undefined | null): string {
+  if (mins == null || mins <= 0) return "Limit";
+  if (mins < 60) return `${mins}m`;
+  const hours = mins / 60;
+  if (hours < 24) return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+  const days = hours / 24;
+  if (Number.isInteger(days) && days === 7) return "Weekly";
+  return Number.isInteger(days) ? `${days}d` : `${days.toFixed(1)}d`;
+}
+
 const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   provider: ProviderKind;
   model: ModelSlug;
@@ -5365,7 +5374,7 @@ const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   modelOptionsByProvider: Record<ProviderKind, ReadonlyArray<{ slug: string; name: string }>>;
   serviceTierSetting: AppServiceTier;
   disabled?: boolean;
-  codexRateLimits?: ReturnType<typeof useQuery<any>>["data"];
+  codexRateLimits?: ServerCodexRateLimits;
   onProviderModelChange: (provider: ProviderKind, model: ModelSlug) => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -5412,7 +5421,7 @@ const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                 <div className="font-medium text-foreground">
                   {Math.round(props.codexRateLimits.primary?.remainingPercent ?? 0)}%
                 </div>
-                <div className="text-muted-foreground">5h</div>
+                <div className="text-muted-foreground">{formatWindowDuration(props.codexRateLimits.primary?.windowDurationMins)}</div>
                 {props.codexRateLimits.primary?.resetsAt ? (
                   <div className="text-[10px] text-muted-foreground/70">
                     {new Date(props.codexRateLimits.primary.resetsAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
@@ -5424,7 +5433,7 @@ const ProviderModelPicker = memo(function ProviderModelPicker(props: {
                   <div className="font-medium text-foreground">
                     {Math.round(props.codexRateLimits.secondary.remainingPercent)}%
                   </div>
-                  <div className="text-muted-foreground">Weekly</div>
+                  <div className="text-muted-foreground">{formatWindowDuration(props.codexRateLimits.secondary?.windowDurationMins)}</div>
                   {props.codexRateLimits.secondary.resetsAt ? (
                     <div className="text-[10px] text-muted-foreground/70">
                       {new Date(props.codexRateLimits.secondary.resetsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
