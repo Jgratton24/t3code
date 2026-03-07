@@ -259,6 +259,7 @@ function ProjectFavicon({ cwd }: { cwd: string }) {
 
 export default function Sidebar() {
   const projects = useStore((store) => store.projects);
+  const threadsHydrated = useStore((store) => store.threadsHydrated);
   const threads = useStore((store) => store.threads);
   const markThreadUnread = useStore((store) => store.markThreadUnread);
   const toggleProject = useStore((store) => store.toggleProject);
@@ -997,8 +998,8 @@ export default function Sidebar() {
           {APP_STAGE_LABEL}
         </span>
         {wslDistroLabel && (
-          <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-[0.18em] text-blue-400">
-            WSL: {wslDistroLabel}
+          <span className="shrink-0 rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-wide text-blue-400">
+            WSL
           </span>
         )}
       </div>
@@ -1303,9 +1304,15 @@ export default function Sidebar() {
 
           {projects.length === 0 && !addingProject && (
             <div className="px-2 pt-4 text-center text-xs text-muted-foreground/60">
-              No projects yet.
-              <br />
-              Add one to get started.
+              {threadsHydrated ? (
+                <>
+                  No projects yet.
+                  <br />
+                  Add one to get started.
+                </>
+              ) : (
+                <span className="animate-pulse">Loading projects…</span>
+              )}
             </div>
           )}
         </SidebarGroup>
