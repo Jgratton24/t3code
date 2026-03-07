@@ -80,9 +80,11 @@ export function checkWslNode(distro: string | null): { available: boolean; path:
 export function windowsToWslPath(distro: string | null, windowsPath: string): string {
   try {
     const distroArgs = distro ? ["-d", distro] : [];
+    // wsl.exe interprets backslashes as escape chars — normalize to forward slashes
+    const normalized = windowsPath.replaceAll("\\", "/");
     const result = ChildProcess.spawnSync(
       "wsl.exe",
-      [...distroArgs, "--", "wslpath", "-u", windowsPath],
+      [...distroArgs, "--", "wslpath", "-u", normalized],
       { encoding: "utf8", timeout: 3_000, windowsHide: true },
     );
     if (result.status === 0 && result.stdout) {
