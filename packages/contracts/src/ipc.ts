@@ -45,6 +45,17 @@ import type {
   OrchestrationReadModel,
 } from "./orchestration";
 import { EditorId } from "./editor";
+import type {
+  AgentHealthEntry,
+  DiscoveryProjectConfig,
+  DiscoveryReport,
+  DiscoveryRunConfig,
+  DiscoveryRunStatus,
+  DiscoveryRunSummary,
+  DiscoveryScheduleConfig,
+  TriageItem,
+  TriageUpdateInput,
+} from "./discovery";
 
 export interface ContextMenuItem<T extends string = string> {
   id: T;
@@ -157,5 +168,25 @@ export interface NativeApi {
     ) => Promise<OrchestrationGetFullThreadDiffResult>;
     replayEvents: (fromSequenceExclusive: number) => Promise<OrchestrationEvent[]>;
     onDomainEvent: (callback: (event: OrchestrationEvent) => void) => () => void;
+  };
+  discovery: {
+    startRun: (config: DiscoveryRunConfig) => Promise<{ runId: string }>;
+    cancelRun: (runId: string) => Promise<void>;
+    getRunStatus: (runId: string) => Promise<DiscoveryRunStatus>;
+    listRuns: (input: { limit?: number; offset?: number }) => Promise<DiscoveryRunSummary[]>;
+    getReport: (runId: string) => Promise<DiscoveryReport>;
+    getAgentHealth: () => Promise<AgentHealthEntry[]>;
+    resetAgentCooldown: (agent: string) => Promise<void>;
+    getSchedule: () => Promise<DiscoveryScheduleConfig>;
+    updateSchedule: (config: DiscoveryScheduleConfig) => Promise<void>;
+    triageUpdate: (input: TriageUpdateInput) => Promise<void>;
+    triageList: (runId: string) => Promise<TriageItem[]>;
+    getConfig: () => Promise<DiscoveryProjectConfig>;
+    updateConfig: (config: DiscoveryProjectConfig) => Promise<void>;
+    onRunProgress: (cb: (status: DiscoveryRunStatus) => void) => () => void;
+    onRunCompleted: (cb: (summary: DiscoveryRunSummary) => void) => () => void;
+    onAgentLogChunk: (
+      cb: (data: { runId: string; agent: string; chunk: string }) => void,
+    ) => () => void;
   };
 }

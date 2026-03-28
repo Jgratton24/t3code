@@ -1,4 +1,7 @@
 import {
+  DISCOVERY_WS_METHODS,
+  DiscoveryRunStatus,
+  DiscoveryRunSummary,
   OrchestrationEvent,
   ORCHESTRATION_WS_CHANNELS,
   ORCHESTRATION_WS_METHODS,
@@ -200,6 +203,48 @@ export function createWsNativeApi(): NativeApi {
         transport.subscribe(ORCHESTRATION_WS_CHANNELS.domainEvent, (data) => {
           const payload = decodeAndWarnOnFailure(OrchestrationEvent, data);
           if (payload) callback(payload);
+        }),
+    },
+    discovery: {
+      startRun: (config) =>
+        transport.request(DISCOVERY_WS_METHODS.startRun, { config }),
+      cancelRun: (runId) =>
+        transport.request(DISCOVERY_WS_METHODS.cancelRun, { runId }),
+      getRunStatus: (runId) =>
+        transport.request(DISCOVERY_WS_METHODS.getRunStatus, { runId }),
+      listRuns: (input) =>
+        transport.request(DISCOVERY_WS_METHODS.listRuns, input),
+      getReport: (runId) =>
+        transport.request(DISCOVERY_WS_METHODS.getReport, { runId }),
+      getAgentHealth: () =>
+        transport.request(DISCOVERY_WS_METHODS.getAgentHealth),
+      resetAgentCooldown: (agent) =>
+        transport.request(DISCOVERY_WS_METHODS.resetAgentCooldown, { agent }),
+      getSchedule: () =>
+        transport.request(DISCOVERY_WS_METHODS.getSchedule),
+      updateSchedule: (config) =>
+        transport.request(DISCOVERY_WS_METHODS.updateSchedule, config),
+      triageUpdate: (input) =>
+        transport.request(DISCOVERY_WS_METHODS.triageUpdate, input),
+      triageList: (runId) =>
+        transport.request(DISCOVERY_WS_METHODS.triageList, { runId }),
+      getConfig: () =>
+        transport.request(DISCOVERY_WS_METHODS.getConfig),
+      updateConfig: (config) =>
+        transport.request(DISCOVERY_WS_METHODS.updateConfig, config),
+      onRunProgress: (cb) =>
+        transport.subscribe(WS_CHANNELS.discoveryRunProgress, (data) => {
+          const payload = decodeAndWarnOnFailure(DiscoveryRunStatus, data);
+          if (payload) cb(payload);
+        }),
+      onRunCompleted: (cb) =>
+        transport.subscribe(WS_CHANNELS.discoveryRunCompleted, (data) => {
+          const payload = decodeAndWarnOnFailure(DiscoveryRunSummary, data);
+          if (payload) cb(payload);
+        }),
+      onAgentLogChunk: (cb) =>
+        transport.subscribe(WS_CHANNELS.discoveryAgentLogChunk, (data) => {
+          cb(data as { runId: string; agent: string; chunk: string });
         }),
     },
   };

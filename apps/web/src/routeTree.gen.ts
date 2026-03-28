@@ -9,19 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DiscoveryRouteImport } from './routes/discovery'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as DiscoveryIndexRouteImport } from './routes/discovery.index'
 import { Route as ChatIndexRouteImport } from './routes/_chat.index'
+import { Route as DiscoveryScheduleRouteImport } from './routes/discovery.schedule'
+import { Route as DiscoveryRunsRouteImport } from './routes/discovery.runs'
+import { Route as DiscoveryAgentsRouteImport } from './routes/discovery.agents'
 import { Route as ChatSettingsRouteImport } from './routes/_chat.settings'
 import { Route as ChatThreadIdRouteImport } from './routes/_chat.$threadId'
+import { Route as DiscoveryRunsRunIdRouteImport } from './routes/discovery.runs.$runId'
 
+const DiscoveryRoute = DiscoveryRouteImport.update({
+  id: '/discovery',
+  path: '/discovery',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DiscoveryIndexRoute = DiscoveryIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DiscoveryRoute,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ChatRoute,
+} as any)
+const DiscoveryScheduleRoute = DiscoveryScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => DiscoveryRoute,
+} as any)
+const DiscoveryRunsRoute = DiscoveryRunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => DiscoveryRoute,
+} as any)
+const DiscoveryAgentsRoute = DiscoveryAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => DiscoveryRoute,
 } as any)
 const ChatSettingsRoute = ChatSettingsRouteImport.update({
   id: '/settings',
@@ -33,38 +64,96 @@ const ChatThreadIdRoute = ChatThreadIdRouteImport.update({
   path: '/$threadId',
   getParentRoute: () => ChatRoute,
 } as any)
+const DiscoveryRunsRunIdRoute = DiscoveryRunsRunIdRouteImport.update({
+  id: '/$runId',
+  path: '/$runId',
+  getParentRoute: () => DiscoveryRunsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
+  '/discovery': typeof DiscoveryRouteWithChildren
   '/$threadId': typeof ChatThreadIdRoute
   '/settings': typeof ChatSettingsRoute
+  '/discovery/agents': typeof DiscoveryAgentsRoute
+  '/discovery/runs': typeof DiscoveryRunsRouteWithChildren
+  '/discovery/schedule': typeof DiscoveryScheduleRoute
+  '/discovery/': typeof DiscoveryIndexRoute
+  '/discovery/runs/$runId': typeof DiscoveryRunsRunIdRoute
 }
 export interface FileRoutesByTo {
   '/$threadId': typeof ChatThreadIdRoute
   '/settings': typeof ChatSettingsRoute
+  '/discovery/agents': typeof DiscoveryAgentsRoute
+  '/discovery/runs': typeof DiscoveryRunsRouteWithChildren
+  '/discovery/schedule': typeof DiscoveryScheduleRoute
   '/': typeof ChatIndexRoute
+  '/discovery': typeof DiscoveryIndexRoute
+  '/discovery/runs/$runId': typeof DiscoveryRunsRunIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
+  '/discovery': typeof DiscoveryRouteWithChildren
   '/_chat/$threadId': typeof ChatThreadIdRoute
   '/_chat/settings': typeof ChatSettingsRoute
+  '/discovery/agents': typeof DiscoveryAgentsRoute
+  '/discovery/runs': typeof DiscoveryRunsRouteWithChildren
+  '/discovery/schedule': typeof DiscoveryScheduleRoute
   '/_chat/': typeof ChatIndexRoute
+  '/discovery/': typeof DiscoveryIndexRoute
+  '/discovery/runs/$runId': typeof DiscoveryRunsRunIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$threadId' | '/settings'
+  fullPaths:
+    | '/'
+    | '/discovery'
+    | '/$threadId'
+    | '/settings'
+    | '/discovery/agents'
+    | '/discovery/runs'
+    | '/discovery/schedule'
+    | '/discovery/'
+    | '/discovery/runs/$runId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/$threadId' | '/settings' | '/'
-  id: '__root__' | '/_chat' | '/_chat/$threadId' | '/_chat/settings' | '/_chat/'
+  to:
+    | '/$threadId'
+    | '/settings'
+    | '/discovery/agents'
+    | '/discovery/runs'
+    | '/discovery/schedule'
+    | '/'
+    | '/discovery'
+    | '/discovery/runs/$runId'
+  id:
+    | '__root__'
+    | '/_chat'
+    | '/discovery'
+    | '/_chat/$threadId'
+    | '/_chat/settings'
+    | '/discovery/agents'
+    | '/discovery/runs'
+    | '/discovery/schedule'
+    | '/_chat/'
+    | '/discovery/'
+    | '/discovery/runs/$runId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  DiscoveryRoute: typeof DiscoveryRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/discovery': {
+      id: '/discovery'
+      path: '/discovery'
+      fullPath: '/discovery'
+      preLoaderRoute: typeof DiscoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_chat': {
       id: '/_chat'
       path: ''
@@ -72,12 +161,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/discovery/': {
+      id: '/discovery/'
+      path: '/'
+      fullPath: '/discovery/'
+      preLoaderRoute: typeof DiscoveryIndexRouteImport
+      parentRoute: typeof DiscoveryRoute
+    }
     '/_chat/': {
       id: '/_chat/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/discovery/schedule': {
+      id: '/discovery/schedule'
+      path: '/schedule'
+      fullPath: '/discovery/schedule'
+      preLoaderRoute: typeof DiscoveryScheduleRouteImport
+      parentRoute: typeof DiscoveryRoute
+    }
+    '/discovery/runs': {
+      id: '/discovery/runs'
+      path: '/runs'
+      fullPath: '/discovery/runs'
+      preLoaderRoute: typeof DiscoveryRunsRouteImport
+      parentRoute: typeof DiscoveryRoute
+    }
+    '/discovery/agents': {
+      id: '/discovery/agents'
+      path: '/agents'
+      fullPath: '/discovery/agents'
+      preLoaderRoute: typeof DiscoveryAgentsRouteImport
+      parentRoute: typeof DiscoveryRoute
     }
     '/_chat/settings': {
       id: '/_chat/settings'
@@ -92,6 +209,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$threadId'
       preLoaderRoute: typeof ChatThreadIdRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/discovery/runs/$runId': {
+      id: '/discovery/runs/$runId'
+      path: '/$runId'
+      fullPath: '/discovery/runs/$runId'
+      preLoaderRoute: typeof DiscoveryRunsRunIdRouteImport
+      parentRoute: typeof DiscoveryRunsRoute
     }
   }
 }
@@ -110,8 +234,39 @@ const ChatRouteChildren: ChatRouteChildren = {
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
+interface DiscoveryRunsRouteChildren {
+  DiscoveryRunsRunIdRoute: typeof DiscoveryRunsRunIdRoute
+}
+
+const DiscoveryRunsRouteChildren: DiscoveryRunsRouteChildren = {
+  DiscoveryRunsRunIdRoute: DiscoveryRunsRunIdRoute,
+}
+
+const DiscoveryRunsRouteWithChildren = DiscoveryRunsRoute._addFileChildren(
+  DiscoveryRunsRouteChildren,
+)
+
+interface DiscoveryRouteChildren {
+  DiscoveryAgentsRoute: typeof DiscoveryAgentsRoute
+  DiscoveryRunsRoute: typeof DiscoveryRunsRouteWithChildren
+  DiscoveryScheduleRoute: typeof DiscoveryScheduleRoute
+  DiscoveryIndexRoute: typeof DiscoveryIndexRoute
+}
+
+const DiscoveryRouteChildren: DiscoveryRouteChildren = {
+  DiscoveryAgentsRoute: DiscoveryAgentsRoute,
+  DiscoveryRunsRoute: DiscoveryRunsRouteWithChildren,
+  DiscoveryScheduleRoute: DiscoveryScheduleRoute,
+  DiscoveryIndexRoute: DiscoveryIndexRoute,
+}
+
+const DiscoveryRouteWithChildren = DiscoveryRoute._addFileChildren(
+  DiscoveryRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  DiscoveryRoute: DiscoveryRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

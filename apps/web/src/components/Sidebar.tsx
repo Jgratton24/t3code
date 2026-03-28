@@ -4,6 +4,7 @@ import {
   GitPullRequestIcon,
   RocketIcon,
   SquarePenIcon,
+  TelescopeIcon,
   TerminalIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,7 +18,8 @@ import {
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useDiscoveryStore } from "../store/discoveryStore";
 import { useAppSettings } from "../appSettings";
 import { isElectron } from "../env";
 import { APP_STAGE_LABEL } from "../branding";
@@ -254,6 +256,32 @@ function ProjectFavicon({ cwd }: { cwd: string }) {
       onLoad={() => setStatus("loaded")}
       onError={() => setStatus("error")}
     />
+  );
+}
+
+function DiscoverySidebarSection() {
+  const activeRunId = useDiscoveryStore((s) => s.activeRunId);
+  const hasUnviewedRun = useDiscoveryStore((s) => s.hasUnviewedCompletedRun);
+
+  return (
+    <>
+      <SidebarSeparator />
+      <div className="px-3 py-2">
+        <Link
+          to={"/discovery" as any}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <TelescopeIcon className="h-4 w-4" />
+          <span>Discovery</span>
+          {activeRunId && (
+            <span className="ml-auto h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+          )}
+          {!activeRunId && hasUnviewedRun && (
+            <span className="ml-auto h-2 w-2 rounded-full bg-green-500" />
+          )}
+        </Link>
+      </div>
+    </>
   );
 }
 
@@ -1317,6 +1345,9 @@ export default function Sidebar() {
           )}
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Discovery Section */}
+      <DiscoverySidebarSection />
 
       <SidebarSeparator />
       <SidebarFooter className="gap-0 p-3">

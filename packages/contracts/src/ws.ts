@@ -32,6 +32,20 @@ import { KeybindingRule } from "./keybindings";
 import { ProjectSearchEntriesInput, ProjectWriteFileInput } from "./project";
 import { OpenInEditorInput } from "./editor";
 import { ServerGetCodexRateLimitsInput } from "./server";
+import {
+  DISCOVERY_WS_CHANNELS,
+  DISCOVERY_WS_METHODS,
+  DiscoveryCancelRunInput,
+  DiscoveryGetReportInput,
+  DiscoveryGetRunStatusInput,
+  DiscoveryListRunsInput,
+  DiscoveryProjectConfig,
+  DiscoveryResetAgentCooldownInput,
+  DiscoveryScheduleConfig,
+  DiscoveryStartRunInput,
+  DiscoveryTriageListInput,
+  TriageUpdateInput,
+} from "./discovery";
 
 // ── WebSocket RPC Method Names ───────────────────────────────────────
 
@@ -69,6 +83,21 @@ export const WS_METHODS = {
   serverGetConfig: "server.getConfig",
   serverGetCodexRateLimits: "server.getCodexRateLimits",
   serverUpsertKeybinding: "server.upsertKeybinding",
+
+  // Discovery methods
+  discoveryStartRun: DISCOVERY_WS_METHODS.startRun,
+  discoveryCancelRun: DISCOVERY_WS_METHODS.cancelRun,
+  discoveryGetRunStatus: DISCOVERY_WS_METHODS.getRunStatus,
+  discoveryListRuns: DISCOVERY_WS_METHODS.listRuns,
+  discoveryGetReport: DISCOVERY_WS_METHODS.getReport,
+  discoveryGetAgentHealth: DISCOVERY_WS_METHODS.getAgentHealth,
+  discoveryResetAgentCooldown: DISCOVERY_WS_METHODS.resetAgentCooldown,
+  discoveryGetSchedule: DISCOVERY_WS_METHODS.getSchedule,
+  discoveryUpdateSchedule: DISCOVERY_WS_METHODS.updateSchedule,
+  discoveryTriageUpdate: DISCOVERY_WS_METHODS.triageUpdate,
+  discoveryTriageList: DISCOVERY_WS_METHODS.triageList,
+  discoveryGetConfig: DISCOVERY_WS_METHODS.getConfig,
+  discoveryUpdateConfig: DISCOVERY_WS_METHODS.updateConfig,
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -77,6 +106,12 @@ export const WS_CHANNELS = {
   terminalEvent: "terminal.event",
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
+
+  // Discovery push channels
+  discoveryRunProgress: DISCOVERY_WS_CHANNELS.runProgress,
+  discoveryRunCompleted: DISCOVERY_WS_CHANNELS.runCompleted,
+  discoveryAgentHealthChanged: DISCOVERY_WS_CHANNELS.agentHealthChanged,
+  discoveryAgentLogChunk: DISCOVERY_WS_CHANNELS.agentLogChunk,
 } as const;
 
 // -- Tagged Union of all request body schemas ─────────────────────────
@@ -132,6 +167,21 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.serverGetConfig, Schema.Struct({})),
   tagRequestBody(WS_METHODS.serverGetCodexRateLimits, ServerGetCodexRateLimitsInput),
   tagRequestBody(WS_METHODS.serverUpsertKeybinding, KeybindingRule),
+
+  // Discovery methods
+  tagRequestBody(WS_METHODS.discoveryStartRun, DiscoveryStartRunInput),
+  tagRequestBody(WS_METHODS.discoveryCancelRun, DiscoveryCancelRunInput),
+  tagRequestBody(WS_METHODS.discoveryGetRunStatus, DiscoveryGetRunStatusInput),
+  tagRequestBody(WS_METHODS.discoveryListRuns, DiscoveryListRunsInput),
+  tagRequestBody(WS_METHODS.discoveryGetReport, DiscoveryGetReportInput),
+  tagRequestBody(WS_METHODS.discoveryGetAgentHealth, Schema.Struct({})),
+  tagRequestBody(WS_METHODS.discoveryResetAgentCooldown, DiscoveryResetAgentCooldownInput),
+  tagRequestBody(WS_METHODS.discoveryGetSchedule, Schema.Struct({})),
+  tagRequestBody(WS_METHODS.discoveryUpdateSchedule, DiscoveryScheduleConfig),
+  tagRequestBody(WS_METHODS.discoveryTriageUpdate, TriageUpdateInput),
+  tagRequestBody(WS_METHODS.discoveryTriageList, DiscoveryTriageListInput),
+  tagRequestBody(WS_METHODS.discoveryGetConfig, Schema.Struct({})),
+  tagRequestBody(WS_METHODS.discoveryUpdateConfig, DiscoveryProjectConfig),
 ]);
 
 export const WebSocketRequest = Schema.Struct({

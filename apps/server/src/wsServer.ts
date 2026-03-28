@@ -74,6 +74,7 @@ import { parseBase64DataUrl } from "./imageMime.ts";
 import { AnalyticsService } from "./telemetry/Services/AnalyticsService.ts";
 import { expandHomePath } from "./os-jank.ts";
 import { fetchCodexRateLimits } from "./codexRateLimits.ts";
+import { DiscoveryEngine } from "./discovery/Services/DiscoveryEngine.ts";
 
 /**
  * ServerShape - Service API for server lifecycle control.
@@ -218,7 +219,8 @@ export type ServerRuntimeServices =
   | TerminalManager
   | Keybindings
   | Open
-  | AnalyticsService;
+  | AnalyticsService
+  | DiscoveryEngine;
 
 export class ServerLifecycleError extends Schema.TaggedErrorClass<ServerLifecycleError>()(
   "ServerLifecycleError",
@@ -258,6 +260,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const git = yield* GitCore;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  const discoveryEngine = yield* DiscoveryEngine;
 
   yield* keybindingsManager.syncDefaultKeybindingsOnStartup.pipe(
     Effect.catch((error) =>
@@ -904,6 +907,57 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         const body = stripRequestTag(request.body);
         const keybindingsConfig = yield* keybindingsManager.upsertKeybindingRule(body);
         return { keybindings: keybindingsConfig, issues: [] };
+      }
+
+      // Discovery methods
+      case WS_METHODS.discoveryStartRun: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.startRun(body.config);
+      }
+      case WS_METHODS.discoveryCancelRun: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.cancelRun(body.runId);
+      }
+      case WS_METHODS.discoveryGetRunStatus: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.getRunStatus(body.runId);
+      }
+      case WS_METHODS.discoveryListRuns: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.listRuns(body);
+      }
+      case WS_METHODS.discoveryGetReport: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.getReport(body.runId);
+      }
+      case WS_METHODS.discoveryGetAgentHealth: {
+        return yield* discoveryEngine.getAgentHealth();
+      }
+      case WS_METHODS.discoveryResetAgentCooldown: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.resetAgentCooldown(body.agent);
+      }
+      case WS_METHODS.discoveryGetSchedule: {
+        return yield* discoveryEngine.getSchedule();
+      }
+      case WS_METHODS.discoveryUpdateSchedule: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.updateSchedule(body);
+      }
+      case WS_METHODS.discoveryTriageUpdate: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.triageUpdate(body);
+      }
+      case WS_METHODS.discoveryTriageList: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.triageList(body.runId);
+      }
+      case WS_METHODS.discoveryGetConfig: {
+        return yield* discoveryEngine.getConfig();
+      }
+      case WS_METHODS.discoveryUpdateConfig: {
+        const body = stripRequestTag(request.body);
+        return yield* discoveryEngine.updateConfig(body);
       }
 
       default: {

@@ -35,6 +35,13 @@ import { GitServiceLive } from "./git/Layers/GitService";
 import { BunPtyAdapterLive } from "./terminal/Layers/BunPTY";
 import { NodePtyAdapterLive } from "./terminal/Layers/NodePTY";
 import { AnalyticsService } from "./telemetry/Services/AnalyticsService";
+import { DiscoveryEngineLive } from "./discovery/Layers/DiscoveryEngine";
+import { ContextGathererLive } from "./discovery/Layers/ContextGatherer";
+import { PromptAssemblerLive } from "./discovery/Layers/PromptAssembler";
+import { AgentRunnerLive } from "./discovery/Layers/AgentRunner";
+import { ReportMergerLive } from "./discovery/Layers/ReportMerger";
+import { HistoryManagerLive } from "./discovery/Layers/HistoryManager";
+import { BudgetGuardLive } from "./discovery/Layers/BudgetGuard";
 
 export function makeServerProviderLayer(): Layer.Layer<
   ProviderService,
@@ -119,11 +126,21 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(textGenerationLayer),
   );
 
+  const discoveryLayer = DiscoveryEngineLive.pipe(
+    Layer.provide(ContextGathererLive),
+    Layer.provide(PromptAssemblerLive),
+    Layer.provide(AgentRunnerLive),
+    Layer.provide(ReportMergerLive),
+    Layer.provide(HistoryManagerLive),
+    Layer.provide(BudgetGuardLive),
+  );
+
   return Layer.mergeAll(
     orchestrationReactorLayer,
     gitCoreLayer,
     gitManagerLayer,
     terminalLayer,
     KeybindingsLive,
+    discoveryLayer,
   ).pipe(Layer.provideMerge(NodeServices.layer));
 }
