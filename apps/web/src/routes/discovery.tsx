@@ -1,5 +1,5 @@
 import { Outlet, createFileRoute, Link, useLocation } from "@tanstack/react-router";
-import { Telescope, History, Activity, Clock } from "lucide-react";
+import { Telescope, History, Activity, Clock, ArrowLeft } from "lucide-react";
 import { Sidebar, SidebarProvider, SidebarInset } from "~/components/ui/sidebar";
 import {
   SidebarContent,
@@ -24,6 +24,13 @@ function DiscoverySidebar() {
   return (
     <>
       <SidebarHeader className="px-3 py-4">
+        <Link
+          to="/"
+          className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Back to Chat
+        </Link>
         <div className="flex items-center gap-2">
           <Telescope className="h-5 w-5 text-primary" />
           <span className="text-sm font-semibold">Discovery</span>
@@ -66,7 +73,7 @@ function DiscoveryLayout() {
       >
         <DiscoverySidebar />
       </Sidebar>
-      <SidebarInset className="flex flex-col overflow-hidden">
+      <SidebarInset className="h-svh flex flex-col">
         <Outlet />
       </SidebarInset>
     </SidebarProvider>

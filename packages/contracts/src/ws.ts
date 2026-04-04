@@ -106,6 +106,7 @@ export const WS_CHANNELS = {
   terminalEvent: "terminal.event",
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
+  openExternal: "shell.openExternal",
 
   // Discovery push channels
   discoveryRunProgress: DISCOVERY_WS_CHANNELS.runProgress,

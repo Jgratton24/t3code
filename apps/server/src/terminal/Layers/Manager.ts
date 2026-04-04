@@ -18,6 +18,7 @@ import { createLogger } from "../../logger";
 import { PtyAdapter, PtyAdapterShape, type PtyExitEvent, type PtyProcess } from "../Services/PTY";
 import { runProcess } from "../../processRunner";
 import { ServerConfig } from "../../config";
+import { ensureBrowserShim } from "../wslBrowserShim";
 import {
   ShellCandidate,
   TerminalError,
@@ -282,6 +283,7 @@ function shouldExcludeTerminalEnvKey(key: string): boolean {
 function createTerminalSpawnEnv(
   baseEnv: NodeJS.ProcessEnv,
   runtimeEnv?: Record<string, string> | null,
+  browserShimPath?: string,
 ): NodeJS.ProcessEnv {
   const spawnEnv: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(baseEnv)) {
@@ -293,6 +295,11 @@ function createTerminalSpawnEnv(
     for (const [key, value] of Object.entries(runtimeEnv)) {
       spawnEnv[key] = value;
     }
+  }
+  // In desktop/WSL mode, override BROWSER so CLI tools (gcloud, gh, etc.)
+  // forward URL-open requests to the host Windows browser via the shim.
+  if (browserShimPath) {
+    spawnEnv.BROWSER = browserShimPath;
   }
   return spawnEnv;
 }
@@ -319,6 +326,12 @@ interface TerminalManagerOptions {
   subprocessPollIntervalMs?: number;
   processKillGraceMs?: number;
   maxRetainedInactiveSessions?: number;
+  /**
+   * Absolute path to the WSL browser shim script. When set, terminal sessions
+   * receive `BROWSER=<shimPath>` so that CLI tools (e.g., `gcloud auth`) open
+   * URLs in the host Windows browser via the T3 Code desktop bridge.
+   */
+  browserShimPath?: string;
 }
 
 export class TerminalManagerRuntime extends EventEmitter<TerminalManagerEvents> {
@@ -339,6 +352,7 @@ export class TerminalManagerRuntime extends EventEmitter<TerminalManagerEvents> 
   private subprocessPollTimer: ReturnType<typeof setInterval> | null = null;
   private subprocessPollInFlight = false;
   private readonly killEscalationTimers = new Map<PtyProcess, ReturnType<typeof setTimeout>>();
+  private readonly browserShimPath: string | undefined;
   private readonly logger = createLogger("terminal");
 
   constructor(options: TerminalManagerOptions) {
@@ -354,6 +368,7 @@ export class TerminalManagerRuntime extends EventEmitter<TerminalManagerEvents> 
     this.processKillGraceMs = options.processKillGraceMs ?? DEFAULT_PROCESS_KILL_GRACE_MS;
     this.maxRetainedInactiveSessions =
       options.maxRetainedInactiveSessions ?? DEFAULT_MAX_RETAINED_INACTIVE_SESSIONS;
+    this.browserShimPath = options.browserShimPath;
     fs.mkdirSync(this.logsDir, { recursive: true });
   }
 
@@ -590,7 +605,7 @@ export class TerminalManagerRuntime extends EventEmitter<TerminalManagerEvents> 
     let startedShell: string | null = null;
     try {
       const shellCandidates = resolveShellCandidates(this.shellResolver);
-      const terminalEnv = createTerminalSpawnEnv(process.env, session.runtimeEnv);
+      const terminalEnv = createTerminalSpawnEnv(process.env, session.runtimeEnv, this.browserShimPath);
       let lastSpawnError: unknown = null;
 
       const spawnWithCandidate = (candidate: ShellCandidate) =>
@@ -1170,13 +1185,25 @@ export class TerminalManagerRuntime extends EventEmitter<TerminalManagerEvents> 
 export const TerminalManagerLive = Layer.effect(
   TerminalManager,
   Effect.gen(function* () {
-    const { stateDir } = yield* ServerConfig;
+    const { stateDir, mode, port, authToken } = yield* ServerConfig;
     const { join } = yield* Path.Path;
     const logsDir = join(stateDir, "logs", "terminals");
 
+    // In desktop mode with auth enabled, generate a browser shim so CLI tools
+    // running in WSL terminal sessions can open URLs in the host browser.
+    let browserShimPath: string | undefined;
+    if (mode === "desktop" && authToken) {
+      try {
+        browserShimPath = ensureBrowserShim({ stateDir, port, authToken });
+        yield* Effect.logInfo("WSL browser shim installed", { path: browserShimPath });
+      } catch (error) {
+        yield* Effect.logWarning("Failed to install WSL browser shim", { error });
+      }
+    }
+
     const ptyAdapter = yield* PtyAdapter;
     const runtime = yield* Effect.acquireRelease(
-      Effect.sync(() => new TerminalManagerRuntime({ logsDir, ptyAdapter })),
+      Effect.sync(() => new TerminalManagerRuntime({ logsDir, ptyAdapter, browserShimPath })),
       (r) => Effect.sync(() => r.dispose()),
     );
 

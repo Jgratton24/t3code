@@ -249,6 +249,16 @@ export function createWsNativeApi(): NativeApi {
     },
   };
 
+  // Forward server-initiated open-external pushes (e.g., from the WSL browser
+  // shim) to the platform's external URL handler (Electron or browser fallback).
+  transport.subscribe(WS_CHANNELS.openExternal, (data) => {
+    const payload = data as { url?: string } | undefined;
+    const url = payload?.url;
+    if (typeof url === "string" && url.length > 0) {
+      void api.shell.openExternal(url);
+    }
+  });
+
   instance = { api, transport };
   return api;
 }

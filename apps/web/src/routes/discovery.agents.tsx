@@ -12,7 +12,7 @@ import {
 
 function DiscoveryAgentHealth() {
   const queryClient = useQueryClient();
-  const { data: agentHealth, isLoading } = useQuery(discoveryAgentHealthQueryOptions());
+  const { data: agentHealth, isLoading, isError } = useQuery(discoveryAgentHealthQueryOptions());
   const resetCooldown = useMutation(discoveryResetCooldownMutation(queryClient));
 
   return (
@@ -24,6 +24,16 @@ function DiscoveryAgentHealth() {
         </div>
 
         {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+
+        {isError && (
+          <p className="text-sm text-destructive">Failed to load agent health. Check that the server is running.</p>
+        )}
+
+        {!isLoading && !isError && agentHealth?.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No health records yet. Run a discovery to populate agent status.
+          </p>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           {(agentHealth ?? []).map((agent) => (
